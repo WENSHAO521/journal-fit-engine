@@ -74,6 +74,7 @@ MIN_TOTAL_EVAL_CASES = 50
 REQUIRED_JFE_MODULES = [
     "__init__.py", "http_client.py", "manuscript_profile.py",
     "journal_evidence.py", "apc_oa.py", "hard_filters.py", "fit_model.py",
+    "fit_dimensions.py", "integrity.py", "indexing.py", "style_context.py",
     "cli.py",
 ]
 

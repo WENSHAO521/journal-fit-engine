@@ -2,6 +2,115 @@
 
 All notable changes to Journal Fit Engine are documented in this file.
 
+## [0.3.0] — 2026-09-09
+
+Closes the `JOURNAL_STYLE_CONTEXT_V1` producer half of the
+Journal Fit Engine → Scholarly Voice Engine handoff (previously only a
+schema declaration in `scholarly-agent-suite/protocols/`, not emitted by
+any code), and expands the fit model from one soft-fit dimension (topic
+overlap) to eleven, plus honest integrity and indexing evidence layers.
+None of this replaces the LLM-reasoning tasks the SKILL.md workflow still
+depends on -- see "Still not implemented" below.
+
+### Added
+
+- `jfe.style_context` — builds and validates a `JOURNAL_STYLE_CONTEXT_V1`
+  envelope (`build_journal_style_context()`, `from_journal_evidence()`).
+  Structurally enforces the official-requirements/observed-patterns
+  separation (SKILL.md §Evidence discipline): a known observed-pattern
+  field (e.g. `mean_paragraph_length`) appearing in `official_requirements`
+  is rejected, and vice versa -- this is the concrete fix for the gap
+  scholarly-voice-engine's own `references/integration.md` flagged as
+  "not yet reconciled." Never derives either bucket from this Skill's own
+  index evidence (OpenAlex/Crossref are bibliographic indexes, not an
+  author-guideline source or corpus sample) -- both must be supplied by
+  the caller; an empty bucket produces an explicit `limitations` entry
+  instead of silently proceeding. `compute_freshness()` classifies
+  `current`/`aging`/`stale` from `JournalEvidence.checked_at` using the
+  same 6/12-month windows scholarly-corpus-builder's refresh policy
+  already documents, and defaults to `stale` (never a silent `current`)
+  when `checked_at` is missing or unparseable.
+- `jfe.fit_dimensions` — eleven evidence-backed fit dimensions (scope,
+  topic, article-type, method, audience, activity/recency, APC
+  constraint, OA model, journal integrity, indexing evidence, requirement
+  compatibility), each returning one of
+  `MATCH`/`PARTIAL_MATCH`/`WEAK_MATCH`/`MISMATCH`/`CANNOT_VERIFY`/
+  `NOT_APPLICABLE` — never a numeric score. A dimension the manuscript
+  never asked about (e.g. no stated `article_type`) is honestly
+  `NOT_APPLICABLE`; a dimension this Skill's adapters cannot evidence at
+  all (e.g. accepted article types, method prevalence, audience) is
+  `CANNOT_VERIFY` even when the manuscript did ask — never guessed.
+  Supplements, does not replace, `fit_model.compute_fit()`'s single
+  overall verdict.
+- `jfe.integrity` — journal-integrity screening
+  (`VERIFIED`/`WARNING`/`CANNOT_VERIFY` per signal and overall) covering
+  identity completeness (ISSN + publisher present), cross-source identity
+  consistency (when a second index adapter's evidence is supplied),
+  recent activity (reuses `hard_filters.check_inactive`), and APC/OA
+  transparency. Deliberately never produces a "predatory probability" or
+  a blanket predatory/legitimate verdict -- that judgment call, and the
+  editorial-board/peer-review/archiving/COPE-membership evidence it
+  actually needs, stays an LLM-reasoning task per
+  `references/journal-integrity.md`.
+- `jfe.indexing` — indexing/quartile evidence assessment. DOAJ inclusion
+  (the one real, free, keyless index this Skill's adapters can check) is
+  reported `officially_verified` with source/freshness attached; Scopus,
+  Web of Science, SCIE, SSCI, AHCI, ESCI, JCR quartile, CiteScore
+  quartile, Impact Factor, and SJR are always `cannot_verify` — never
+  inferred from a publisher's claim or from training-data recall of a
+  journal's reputation, and never a bare "Q1" without system/category/
+  year context (references/indexing-metrics.md).
+- `jfe.manuscript_profile.tokenize()` — the stopword-filtered tokenizer
+  extracted out of `ManuscriptProfile.keywords()` and `fit_model`'s
+  topic-overlap matcher into one shared function, reused by
+  `fit_dimensions.scope_fit()` (a real DRY fix made while adding the new
+  dimension, not a behavior change to either existing caller).
+- `jfe.journal_evidence` now actually populates `checked_at` (was always
+  `None` before this release, despite being declared on `JournalEvidence`
+  since v0.2.0) -- `lookup_by_name()`/`lookup_by_issn()` stamp it with the
+  real UTC time of the successful lookup, which `style_context`'s
+  freshness computation depends on.
+- `jfe.cli build-style-context` — developer command exercising the new
+  producer end to end against live evidence.
+- `evaluate-fit` CLI output now also includes `fit_dimensions`,
+  `integrity`, and `indexing`.
+- 51 new tests (fully offline) covering the four new modules, including
+  explicit regression tests for the official/observed contamination rule
+  and for freshness never silently defaulting to "current."
+- `jfe/` runtime allowlist grew to include the four new modules (12 files,
+  was 8) — `scripts/validate_skill.py` and `scripts/package_runtime.py`
+  updated accordingly.
+
+### Changed
+
+- `references/integration.md`'s Scholarly Voice Engine section now leads
+  with the `JOURNAL_STYLE_CONTEXT_V1` handoff; the older compact/full
+  `target_voice_adjustment`/`journal_target` shapes remain valid for a
+  caller that has already derived writing-level adjustments and wants to
+  skip straight to that.
+
+### Still not implemented (honest, not smoothed over)
+
+- Candidate generation/discovery (references/candidate-generation.md) —
+  still entirely an LLM-reasoning task.
+- Predatory/legitimate judgment calls, editorial-board/peer-review/
+  archiving/COPE-membership evidence — `jfe.integrity` only screens what
+  its two free index adapters can actually see (identity completeness,
+  cross-source consistency, activity, APC transparency); the fuller
+  screen in `references/journal-integrity.md` is still an LLM-reasoning
+  task.
+- `scope_fit`/`topic_fit` remain bag-of-words overlap, not semantic
+  matching; `article_type_fit`/`method_fit`/`audience_fit` are
+  `CANNOT_VERIFY` even when the manuscript states the field, because no
+  available index exposes a journal's accepted types/method
+  prevalence/audience.
+- Submission-strategy ladders (references/submission-strategy.md).
+- `official_requirements`/`observed_patterns` population itself (fetching
+  a journal's real guidelines page; running scholarly-corpus-builder
+  against its article sample) is still the caller's job --
+  `jfe.style_context` assembles and validates the envelope, it does not
+  retrieve either bucket's content.
+
 ## [0.2.0] — 2026-09-09
 
 First real, tested, live-verified implementation of the mechanical parts
