@@ -25,7 +25,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-REQUIRED_TOP_FILES = ["SKILL.md", "README.md", "CHANGELOG.md", "LICENSE"]
+REQUIRED_TOP_FILES = ["SKILL.md", "README.md", "CHANGELOG.md", "LICENSE", "VERSION"]
 
 REQUIRED_REFERENCES = [
     "manuscript-profile.md",
@@ -67,6 +67,18 @@ REQUIRED_EVAL_FIELDS = ["id", "category", "discipline", "scenario", "expected_be
 
 MIN_TOTAL_EVAL_CASES = 50
 
+# Files the standalone runtime ZIP (scripts/package_runtime.py) bundles:
+# everything a host needs to run the skill, none of the dev-only tooling
+# (CHANGELOG, VERSION, evals, scripts, tests, CI).
+RUNTIME_FILES = tuple(sorted([
+    "SKILL.md", "README.md", "LICENSE", "agents/openai.yaml",
+    *(f"references/{name}" for name in REQUIRED_REFERENCES),
+    *(f"disciplines/{name}" for name in REQUIRED_DISCIPLINES),
+]))
+
+VERSION_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
+CHANGELOG_HEADING_RE = re.compile(r"^## \[(\d+\.\d+\.\d+)\]", re.MULTILINE)
+
 errors = []
 warnings = []
 
@@ -101,6 +113,12 @@ def check_required_files():
 
     if not (ROOT / "scripts" / "validate_skill.py").is_file():
         fail("Missing scripts/validate_skill.py (this file)")
+
+    for name in ("scripts/package_runtime.py", "tests/test_validate_skill.py",
+                 "tests/test_package_runtime.py", "RELEASE_CHECKLIST.md",
+                 ".github/workflows/validate.yml"):
+        if not (ROOT / name).is_file():
+            fail(f"Missing required file: {name}")
 
 
 def parse_frontmatter(text):
@@ -231,6 +249,26 @@ def check_profile_schema_examples():
             fail("references/journal-profile.md does not appear to contain the journal profile schema")
 
 
+def check_version_consistency():
+    version_path = ROOT / "VERSION"
+    changelog_path = ROOT / "CHANGELOG.md"
+    if not version_path.is_file() or not changelog_path.is_file():
+        return
+
+    version = version_path.read_text(encoding="utf-8").strip()
+    if not VERSION_RE.match(version):
+        fail(f"VERSION must contain a plain MAJOR.MINOR.PATCH version, got: {version!r}")
+        return
+
+    changelog = changelog_path.read_text(encoding="utf-8")
+    match = CHANGELOG_HEADING_RE.search(changelog)
+    if not match:
+        fail("CHANGELOG.md has no '## [MAJOR.MINOR.PATCH]' heading to check VERSION against")
+        return
+    if match.group(1) != version:
+        fail(f"VERSION ({version}) and latest CHANGELOG.md heading ({match.group(1)}) disagree")
+
+
 def main():
     check_required_files()
     check_skill_frontmatter()
@@ -238,6 +276,7 @@ def main():
     check_local_links()
     check_evals()
     check_profile_schema_examples()
+    check_version_consistency()
 
     if warnings:
         print("Warnings:")

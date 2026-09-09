@@ -1,7 +1,9 @@
 # Journal Fit Engine
 
 Cross-disciplinary evidence-aware journal matching, submission strategy, and
-manuscript–venue fit — an Agent Skill.
+manuscript–venue fit — an Agent Skill. Repository version: **v0.1.0**
+(working state — see [GitHub Releases](https://github.com/WENSHAO521/journal-fit-engine/releases)
+for what is actually published).
 
 > Its objective is not "find the journal with the highest metric." It is
 > "find the strongest scholarly conversation in which this manuscript can
@@ -155,7 +157,7 @@ Builder and hands compact adaptation targets to the Voice Engine — it does
 not perform retrieval or rewriting itself, and also runs standalone when
 those peers aren't present. See [references/integration.md](references/integration.md).
 
-## Evaluation
+## Evaluation, testing, and packaging
 
 54 test cases across `evals/manuscript-profile.jsonl`,
 `evals/hard-filter.jsonl`, `evals/fit-ranking.jsonl`,
@@ -165,9 +167,30 @@ method/article-type/audience fit, current-data and APC/indexing uncertainty,
 regional and interdisciplinary matching, stretch-vs-realistic distinctions,
 integrity screening, and known anti-patterns (impact-factor-only ranking,
 keyword-only matching, inactive-journal recommendation, no-APC constraint
-violation, pay-to-publish framing). Run `python scripts/validate_skill.py`
-to validate repository structure, frontmatter, links, and eval-file schema
-(standard library only, no dependencies).
+violation, pay-to-publish framing). These are policy fixtures the validator
+checks for schema consistency; they are not a live model-quality benchmark.
+
+From the repository root (Python 3.11+, standard library only, no
+third-party dependencies):
+
+```bash
+python scripts/validate_skill.py
+python -m unittest discover -s tests -v
+git diff --check
+python scripts/package_runtime.py
+python scripts/package_runtime.py --verify dist/journal-fit-engine-v0.1.0.zip
+```
+
+`scripts/validate_skill.py` checks required structure, frontmatter, local
+Markdown links, JSONL eval schema, the eval-count minimum, and VERSION/
+CHANGELOG consistency. `scripts/package_runtime.py` builds a deterministic
+25-file runtime ZIP (`SKILL.md`, `README.md`, `LICENSE`, `agents/openai.yaml`,
+all of `references/` and `disciplines/` — excluding CHANGELOG, VERSION,
+evals, scripts, and tests) with a SHA-256 checksum and a generated
+`release-manifest.json`, then re-validates the extracted contents.
+[GitHub Actions](.github/workflows/validate.yml) runs all three on every
+push and pull request. See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for
+the manual publish-after-CI procedure.
 
 ## Limitations
 

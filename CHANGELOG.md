@@ -58,7 +58,17 @@ Initial release — core fit engine.
   cases.
 - `scripts/validate_skill.py` — standard-library-only repository validator
   (required files, frontmatter, local links, JSONL schema, eval-count
-  minimum).
+  minimum, VERSION/CHANGELOG consistency).
+- `VERSION` file and CHANGELOG-heading consistency check.
+- `tests/test_validate_skill.py` (26 cases) and `tests/test_package_runtime.py`
+  (16 cases) — negative-path regression coverage for the validator and
+  packager, run against isolated temporary copies of the repository.
+- `scripts/package_runtime.py` — deterministic 25-file runtime ZIP with
+  SHA-256 checksum and a generated release manifest; excludes CHANGELOG,
+  VERSION, evals, scripts, and tests from the bundled runtime.
+- `RELEASE_CHECKLIST.md` — manual publish-after-CI release procedure.
+- `.github/workflows/validate.yml` — CI running the validator, tests, and
+  a packaging dry run on every push/PR.
 
 ### Scope for this release
 v0.1 ships the core fit engine only: manuscript profiling, journal
