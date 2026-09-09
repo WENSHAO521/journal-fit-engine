@@ -38,7 +38,10 @@ TRACKED_FILES = (
     "references/submission-strategy.md",
     "scripts/validate_skill.py", "scripts/package_runtime.py",
     "tests/test_validate_skill.py", "tests/test_package_runtime.py",
-    ".github/workflows/validate.yml",
+    ".github/workflows/validate.yml", ".github/workflows/live-check.yml",
+    "jfe/__init__.py", "jfe/http_client.py", "jfe/manuscript_profile.py",
+    "jfe/journal_evidence.py", "jfe/apc_oa.py", "jfe/hard_filters.py",
+    "jfe/fit_model.py", "jfe/cli.py",
 )
 
 
@@ -197,7 +200,7 @@ class ValidatorTests(unittest.TestCase):
 
     def test_version_changelog_mismatch_rejected(self):
         self.edit("VERSION", lambda text: "9.9.9")
-        self.reject("VERSION (9.9.9) and latest CHANGELOG.md heading (0.1.0) disagree")
+        self.reject("VERSION (9.9.9) and latest CHANGELOG.md heading (0.2.0) disagree")
 
     def test_missing_version_file_is_required_file_error(self):
         (self.root / "VERSION").unlink()

@@ -1,0 +1,62 @@
+name: Live API Check (manual)
+
+# Optional, manual-only smoke test against the real OpenAlex/Crossref
+# journal-evidence APIs. Never runs on push/PR and is never a gate for
+# merging or releasing -- routine CI (validate.yml) stays fully offline.
+# This exists so a maintainer can occasionally confirm jfe/journal_evidence.py
+# still matches the live API shapes.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  live-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Live journal-evidence smoke test
+        run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, ".")
+
+          from jfe.apc_oa import classify
+          from jfe.http_client import HttpClient
+          from jfe.journal_evidence import EvidenceLookupError, lookup_by_issn, lookup_by_name
+
+          client = HttpClient(user_agent="journal-fit-engine-ci-live-check/1.0 (mailto:ci@example.com)")
+          failures = []
+
+          def check(name, fn):
+              try:
+                  result = fn()
+                  print("OK:", name, "->", result)
+              except (EvidenceLookupError, Exception) as e:  # noqa: BLE001
+                  print("FAIL:", name, "-", e)
+                  failures.append(name)
+
+          check("lookup_by_name(known journal)",
+                lambda: lookup_by_name(client, "Journal of Public Administration Research and Theory").display_name)
+          check("lookup_by_issn(known ISSN)",
+                lambda: lookup_by_issn(client, "1053-1858").display_name)
+          check("apc_oa.classify(known OA journal)",
+                lambda: classify(lookup_by_name(client, "PLOS ONE")).state)
+
+          if failures:
+              print("\nLive check found drift in:", ", ".join(failures))
+              print("This is informational only and does not fail routine CI -- investigate the affected adapter.")
+          PY
+
+      - name: Report outcome (never fails the workflow)
+        if: always()
+        run: echo "Live check complete -- see the previous step's output for any drift found. This workflow never blocks merges or releases."

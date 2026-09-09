@@ -1,7 +1,7 @@
 # Journal Fit Engine
 
 Cross-disciplinary evidence-aware journal matching, submission strategy, and
-manuscript–venue fit — an Agent Skill. Repository version: **v0.1.0**
+manuscript–venue fit — an Agent Skill. Repository version: **v0.2.0**
 (working state — see [GitHub Releases](https://github.com/WENSHAO521/journal-fit-engine/releases)
 for what is actually published).
 
@@ -157,6 +157,46 @@ Builder and hands compact adaptation targets to the Voice Engine — it does
 not perform retrieval or rewriting itself, and also runs standalone when
 those peers aren't present. See [references/integration.md](references/integration.md).
 
+## Reference implementation (`jfe/`)
+
+A real, tested, live-verified Python package operationalizing the
+mechanical parts of the workflow above -- not a replacement for the LLM's
+own reasoning on soft fit, candidate generation, integrity screening, or
+submission strategy (see SKILL.md §Reference implementation for the exact
+boundary):
+
+- `jfe.journal_evidence` — live lookup via OpenAlex Sources (primary: APC,
+  OA/DOAJ status, topics, activity years) with Crossref Journals as a
+  fallback. Keeps identity/APC fields (`OFFICIAL_REQUIREMENTS`-adjacent)
+  and activity/topic fields (`OBSERVED_CORPUS_PROFILE`-adjacent) in
+  separate dataclass fields, never blurred.
+- `jfe.apc_oa` — classifies `MANDATORY_APC` / `DIAMOND_OA` /
+  `HYBRID_OA_OPTIONAL` / `UNKNOWN` from OpenAlex's `is_oa`/`apc_usd`/
+  `is_in_doaj` fields; a stated `no_mandatory_apc` constraint is violated
+  only by `MANDATORY_APC`, never by an optional hybrid fee.
+- `jfe.hard_filters` — journal-inactivity (no indexed output in 4+ years),
+  no-mandatory-APC-constraint, and honest `CANNOT_VERIFY` results (never a
+  fabricated pass) for article-type/language policy that neither index
+  exposes at the source level. `CANNOT_VERIFY` alone never eliminates a
+  candidate.
+- `jfe.fit_model` — one soft-fit dimension implemented so far: topic
+  overlap between the manuscript's keyword bag and the journal's indexed
+  topics, mapped to the six categorical labels (never a numeric score
+  returned to the caller).
+- `jfe.manuscript_profile` — `MANUSCRIPT_PROFILE_V1` shape validation.
+
+```bash
+python -m jfe.cli lookup-journal --query "Journal of Public Administration Research and Theory"
+python -m jfe.cli evaluate-fit --manuscript-json manuscript.json --query "..."
+```
+
+Not yet implemented in code (tracked in CHANGELOG, still handled by the
+LLM's own reasoning per SKILL.md): candidate generation/discovery,
+journal-integrity screening, indexing/quartile verification beyond what
+OpenAlex/Crossref expose, submission-strategy ladders, and every soft-fit
+dimension besides topic overlap (method, theory, audience, article-type,
+regional, writing-architecture).
+
 ## Evaluation, testing, and packaging
 
 54 test cases across `evals/manuscript-profile.jsonl`,
@@ -178,15 +218,15 @@ python scripts/validate_skill.py
 python -m unittest discover -s tests -v
 git diff --check
 python scripts/package_runtime.py
-python scripts/package_runtime.py --verify dist/journal-fit-engine-v0.1.0.zip
+python scripts/package_runtime.py --verify dist/journal-fit-engine-v0.2.0.zip
 ```
 
 `scripts/validate_skill.py` checks required structure, frontmatter, local
 Markdown links, JSONL eval schema, the eval-count minimum, and VERSION/
 CHANGELOG consistency. `scripts/package_runtime.py` builds a deterministic
-25-file runtime ZIP (`SKILL.md`, `README.md`, `LICENSE`, `agents/openai.yaml`,
-all of `references/` and `disciplines/` — excluding CHANGELOG, VERSION,
-evals, scripts, and tests) with a SHA-256 checksum and a generated
+33-file runtime ZIP (`SKILL.md`, `README.md`, `LICENSE`, `agents/openai.yaml`,
+all of `references/`, `disciplines/`, and `jfe/` — excluding CHANGELOG,
+VERSION, evals, scripts, and tests) with a SHA-256 checksum and a generated
 `release-manifest.json`, then re-validates the extracted contents.
 [GitHub Actions](.github/workflows/validate.yml) runs all three on every
 push and pull request. See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for
@@ -195,16 +235,34 @@ the manual publish-after-CI procedure.
 ## Limitations
 
 - No acceptance guarantee, explicit or implied.
-- No exhaustive global journal database — candidate discovery is targeted,
-  not comprehensive.
-- No guaranteed real-time access to indexing databases; indexing claims are
-  verified when possible and marked unverified otherwise.
+- `jfe.journal_evidence` looks up one named/ISSN-identified journal at a
+  time against OpenAlex/Crossref; it is not a candidate-generation or
+  discovery engine, and there is no exhaustive global journal database —
+  candidate discovery is still an LLM-reasoning task per SKILL.md, not
+  implemented in code.
+- Indexing/quartile verification (SSCI/SCIE/Scopus/DOAJ beyond OpenAlex's
+  own `is_in_doaj` flag) is not implemented in code; indexing claims
+  beyond that are still an LLM-reasoning task, verified when possible and
+  marked unverified otherwise.
+- `jfe.fit_model` implements exactly one soft-fit dimension (topic
+  overlap via OpenAlex's indexed topics) as real, tested code; method,
+  theory, audience, article-type, regional, and writing-architecture fit
+  remain LLM-reasoning tasks per `references/fit-model.md`, not code.
+- `jfe.hard_filters`' language and article-type checks honestly return
+  `CANNOT_VERIFY` — neither OpenAlex nor Crossref exposes a journal's
+  accepted-language or accepted-article-type list at the source level.
 - Observed publishing patterns are not the same as formal editorial policy —
   they describe recent tendencies, not binding rules.
 - Stylistic or structural similarity to a journal's back catalog does not
   predict acceptance.
 - APC, review-time, and acceptance-rate figures are not guaranteed stable —
-  always verify against the current official source before submitting.
+  live-verified 2026-09-09 (see CHANGELOG and the manual
+  [live-check workflow](.github/workflows/live-check.yml)), not a
+  permanent guarantee; always verify against the current official source
+  before submitting.
+- Journal-integrity screening (`references/journal-integrity.md`) and
+  submission-strategy ladders (`references/submission-strategy.md`) remain
+  LLM-reasoning tasks, not implemented in code.
 
 ## Installation
 

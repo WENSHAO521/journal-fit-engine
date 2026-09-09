@@ -67,6 +67,16 @@ REQUIRED_EVAL_FIELDS = ["id", "category", "discipline", "scenario", "expected_be
 
 MIN_TOTAL_EVAL_CASES = 50
 
+# jfe/ -- the real, tested, live-verified reference implementation of the
+# evidence-lookup/hard-filter/APC-classification/fit-model portions of the
+# workflow (mirrors scholarly-corpus-builder's scb/ package). Runtime code,
+# not dev tooling, so it ships in the runtime ZIP alongside SKILL.md.
+REQUIRED_JFE_MODULES = [
+    "__init__.py", "http_client.py", "manuscript_profile.py",
+    "journal_evidence.py", "apc_oa.py", "hard_filters.py", "fit_model.py",
+    "cli.py",
+]
+
 # Files the standalone runtime ZIP (scripts/package_runtime.py) bundles:
 # everything a host needs to run the skill, none of the dev-only tooling
 # (CHANGELOG, VERSION, evals, scripts, tests, CI).
@@ -74,6 +84,7 @@ RUNTIME_FILES = tuple(sorted([
     "SKILL.md", "README.md", "LICENSE", "agents/openai.yaml",
     *(f"references/{name}" for name in REQUIRED_REFERENCES),
     *(f"disciplines/{name}" for name in REQUIRED_DISCIPLINES),
+    *(f"jfe/{name}" for name in REQUIRED_JFE_MODULES),
 ]))
 
 VERSION_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
@@ -106,6 +117,10 @@ def check_required_files():
     for name in REQUIRED_DISCIPLINES:
         if not (ROOT / "disciplines" / name).is_file():
             fail(f"Missing required discipline file: disciplines/{name}")
+
+    for name in REQUIRED_JFE_MODULES:
+        if not (ROOT / "jfe" / name).is_file():
+            fail(f"Missing required jfe module: jfe/{name}")
 
     for name in REQUIRED_EVAL_FILES:
         if not (ROOT / "evals" / name).is_file():

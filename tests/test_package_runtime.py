@@ -45,7 +45,10 @@ TRACKED_FILES = (
     "references/submission-strategy.md",
     "scripts/validate_skill.py", "scripts/package_runtime.py",
     "tests/test_validate_skill.py", "tests/test_package_runtime.py",
-    ".github/workflows/validate.yml",
+    ".github/workflows/validate.yml", ".github/workflows/live-check.yml",
+    "jfe/__init__.py", "jfe/http_client.py", "jfe/manuscript_profile.py",
+    "jfe/journal_evidence.py", "jfe/apc_oa.py", "jfe/hard_filters.py",
+    "jfe/fit_model.py", "jfe/cli.py",
 )
 
 
