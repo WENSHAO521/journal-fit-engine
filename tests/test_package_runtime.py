@@ -49,7 +49,8 @@ TRACKED_FILES = (
     "jfe/__init__.py", "jfe/http_client.py", "jfe/manuscript_profile.py",
     "jfe/journal_evidence.py", "jfe/apc_oa.py", "jfe/hard_filters.py",
     "jfe/fit_model.py", "jfe/fit_dimensions.py", "jfe/integrity.py",
-    "jfe/indexing.py", "jfe/style_context.py", "jfe/cli.py",
+    "jfe/indexing.py", "jfe/style_context.py", "jfe/target_journal_profile.py",
+    "jfe/cli.py",
 )
 
 

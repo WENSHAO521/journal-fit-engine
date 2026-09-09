@@ -42,7 +42,8 @@ TRACKED_FILES = (
     "jfe/__init__.py", "jfe/http_client.py", "jfe/manuscript_profile.py",
     "jfe/journal_evidence.py", "jfe/apc_oa.py", "jfe/hard_filters.py",
     "jfe/fit_model.py", "jfe/fit_dimensions.py", "jfe/integrity.py",
-    "jfe/indexing.py", "jfe/style_context.py", "jfe/cli.py",
+    "jfe/indexing.py", "jfe/style_context.py", "jfe/target_journal_profile.py",
+    "jfe/cli.py",
 )
 
 
@@ -201,7 +202,7 @@ class ValidatorTests(unittest.TestCase):
 
     def test_version_changelog_mismatch_rejected(self):
         self.edit("VERSION", lambda text: "9.9.9")
-        self.reject("VERSION (9.9.9) and latest CHANGELOG.md heading (0.3.0) disagree")
+        self.reject("VERSION (9.9.9) and latest CHANGELOG.md heading (0.4.0) disagree")
 
     def test_missing_version_file_is_required_file_error(self):
         (self.root / "VERSION").unlink()

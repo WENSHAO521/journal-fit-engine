@@ -2,6 +2,74 @@
 
 All notable changes to Journal Fit Engine are documented in this file.
 
+## [0.4.0] — 2026-09-09
+
+Adds a `TARGET_JOURNAL_PROFILE_V1` producer
+(`scholarly-agent-suite/protocols/journal-profile.schema.json`), closing
+one of the two remaining `DECLARED_ONLY` protocols identified during the
+v1.1 family release's protocol audit (schema existed, no producer or
+consumer code anywhere in the family). This module is what genuinely
+qualifies journal-fit-engine to compose evidence it has already computed
+(via `journal_evidence`, `apc_oa`, `fit_model`, `indexing`, `integrity`)
+into one canonical resolved-candidate envelope, rather than a second
+fact-gathering layer.
+
+### Added
+
+- `jfe.target_journal_profile` — `build_target_journal_profile()` composes
+  already-computed `JournalEvidence`/`FitResult`/`APCClassification`/
+  `IndexingAssessment`/`IntegrityScreen` objects into a
+  `TARGET_JOURNAL_PROFILE_V1` envelope. A pure adapter/serializer: it never
+  re-derives evidence, and any optional field it cannot honestly support
+  (no manuscript, no topic data, no APC classification) is omitted from
+  the envelope rather than guessed, since the schema's `additionalProperties:
+  false` and fixed enum vocabularies leave no room for an invented value.
+  - `fit_assessment` maps `fit_model`'s 6-label scale onto the schema's
+    4-value enum (`STRONG_FIT`/`MODERATE_FIT`/`WEAK_FIT`/`NOT_ASSESSED`),
+    and deliberately does not repeat `compute_fit()`'s own conflation of
+    "no topic data to assess" with "assessed as a poor fit" -- the former
+    is honestly `NOT_ASSESSED`, never `WEAK_FIT`.
+  - `apc_status`/`oa_status` map `apc_oa.classify()`'s four states onto the
+    schema's enums; `HYBRID_OA_OPTIONAL` maps to `no-apc`/`hybrid` (no
+    mandatory fee on the default publication path) rather than
+    `apc-required` or `fully-oa`, either of which would misstate it.
+  - `indexing` includes only entries `jfe.indexing.assess_indexing()`
+    marked `officially_verified` with a truthy value -- never the
+    `cannot_verify` placeholders for the paid indexes this Skill's
+    adapters cannot reach.
+  - `provenance` is a real `PROVENANCE_RECORD_V1` record (not a second,
+    incompatible provenance shape): `retrieval_date` from
+    `evidence.checked_at` (raises rather than fabricating "now" if
+    missing), and `verification_status`/`conflict_notes` driven by
+    `jfe.integrity.screen()`'s existing `cross_source_consistency` check
+    when a second index source was queried -- `verified` on agreement,
+    `conflicting` with the actual disagreement recorded on conflict, and
+    the honest default `unverified` when only one source was checked
+    (`jfe.journal_evidence`'s lookups only ever query one adapter per
+    call).
+- `jfe.cli build-journal-profile` — developer command exercising the new
+  producer against live evidence, with an optional `--manuscript-json` to
+  also populate `fit_assessment` (omitted, it is `NOT_ASSESSED`). Verified
+  live against a real journal (PLOS ONE): correctly reported
+  `apc_status: apc-required`, `oa_status: fully-oa`, `indexing: [DOAJ]`,
+  and `fit_assessment: STRONG_FIT` against a manuscript whose keywords
+  matched the journal's real indexed topics.
+- 29 new unit tests (`tests/test_target_journal_profile.py`) plus 3 new
+  CLI tests, covering the label/enum mappings above, optional-field
+  omission, the `PROVENANCE_RECORD_V1` verification-status derivation, and
+  a structural assertion that the envelope never contains a key outside
+  the canonical schema (e.g. no acceptance-probability field to even
+  accidentally populate).
+
+### Not producing a consumer this round
+
+No code in the family consumes `TARGET_JOURNAL_PROFILE_V1` yet (a
+shortlist/ranking layer, or `workflows/target-journal-adaptation.md`'s
+orchestration state, are the natural candidates). Per the family's
+protocol-maturity policy, this protocol's status is `PARTIAL`, not `FULL`,
+until a real consumer exists and a producer-to-consumer test proves the
+handoff -- this release does not claim otherwise.
+
 ## [0.3.0] — 2026-09-09
 
 Closes the `JOURNAL_STYLE_CONTEXT_V1` producer half of the
